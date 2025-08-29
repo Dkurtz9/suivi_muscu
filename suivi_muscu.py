@@ -21,9 +21,6 @@ menu = st.sidebar.radio("Navigation", ["Ajouter une performance", "Voir mes perf
 # -------------------------------
 # Ajouter une performance
 # -------------------------------
-# -------------------------------
-# Ajouter une performance
-# -------------------------------
 if menu == "Ajouter une performance":
     st.header("➕ Ajouter une performance")
 
@@ -49,7 +46,12 @@ if menu == "Ajouter une performance":
     if poids_du_corps:
         poids = 0.0
     else:
-        poids = st.number_input("Poids (kg)", min_value=0.0, step=0.5)
+        poids_input = st.text_input("Poids (kg)", value="")
+        try:
+            poids = float(poids_input) if poids_input else 0.0
+        except ValueError:
+            st.error("⚠️ Saisis un nombre valide pour le poids")
+            poids = None
 
     # Séries et répétitions
     nombre_series = st.selectbox("Nombre de séries", options=[1,2,3,4])
@@ -63,8 +65,7 @@ if menu == "Ajouter une performance":
 
     # Bouton enregistrer
     if st.button("Enregistrer"):
-        if user and exo and (poids > 0.0 or poids_du_corps) and any(reps_series):
-            # On convertit le poids en float compatible Supabase numeric
+        if user and exo and (poids is not None and (poids > 0.0 or poids_du_corps)) and any(reps_series):
             supabase.table("performances").insert({
                 "user_id": user_id,
                 "seance_id": seance_id,
@@ -80,24 +81,25 @@ if menu == "Ajouter une performance":
             st.error("⚠️ Remplis tous les champs obligatoires.")
 
     # Affichage des performances du jour
-    data = supabase.table("performances").select("*").eq("user_id", user_id).eq("date", d.isoformat()).execute()
-    df_display = pd.DataFrame(data.data)
-    if not df_display.empty:
-        df_display["reps_series"] = df_display["reps_series"].apply(lambda x: str(x or []))
-        if "seance_name" not in df_display.columns:
-            df_display["seance_name"] = "Inconnue"
+    if user_id:
+        data = supabase.table("performances").select("*").eq("user_id", user_id).eq("date", d.isoformat()).execute()
+        df_display = pd.DataFrame(data.data)
+        if not df_display.empty:
+            # Assurer que la colonne seance_name existe
+            if "seance_name" not in df_display.columns:
+                df_display["seance_name"] = "Inconnue"
+            df_display["reps_series"] = df_display["reps_series"].apply(lambda x: str(x or []))
 
-        columns_to_show = ["date", "seance_name", "exercice", "poids", "reps_series", "notes"]
-        st.subheader("📋 Performances du jour")
-        st.dataframe(df_display[columns_to_show])
+            columns_to_show = ["date", "seance_name", "exercice", "poids", "reps_series", "notes"]
+            st.subheader("📋 Performances du jour")
+            st.dataframe(df_display[columns_to_show])
 
-        # Boutons suppression
-        for idx, row in df_display.iterrows():
-            if st.button(f"Supprimer {row['exercice']}"):
-                supabase.table("performances").delete().eq("id", row["id"]).execute()
-                st.success(f"Performance {row['exercice']} supprimée !")
-                st.experimental_rerun()
-
+            # Boutons suppression
+            for idx, row in df_display.iterrows():
+                if st.button(f"Supprimer {row['exercice']}"):
+                    supabase.table("performances").delete().eq("id", row["id"]).execute()
+                    st.success(f"Performance {row['exercice']} supprimée !")
+                    st.experimental_rerun()
 
 # -------------------------------
 # Voir mes performances
