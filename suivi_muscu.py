@@ -153,6 +153,7 @@ elif menu == "Voir mes performances":
                         "exercice": ex,
                         "seance": seance_name,
                         "poids_max": subset.loc[idx_max, "poids"],
+			"Reps_max" : subset.loc[idx_max, "reps"], 
                         "date": subset.loc[idx_max, "date"]
                     }
                     pr_list.append(pr_row)
