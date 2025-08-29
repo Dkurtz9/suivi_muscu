@@ -50,9 +50,9 @@ if menu == "Ajouter une performance":
         if exo:
             supabase.table("exercises").insert({"name": exo, "seance_id": seance_id}).execute()
 
-    # ----- Saisie du poids -----
-    poids_du_corps = st.checkbox("Poids du corps")
-    if poids_du_corps:
+    # ----- Poids avec radio pour mobile -----
+    poids_option = st.radio("Poids", ["Poids du corps", "Avec poids"])
+    if poids_option == "Poids du corps":
         poids = 0
     else:
         poids_input = st.text_input("Poids (kg)", "")
@@ -70,7 +70,7 @@ if menu == "Ajouter une performance":
 
     # ----- Enregistrer la performance -----
     if st.button("Enregistrer"):
-        if user and exo and (poids > 0 or poids_du_corps) and all(r > 0 for r in reps_series):
+        if user and exo and (poids > 0 or poids_option == "Poids du corps") and all(r > 0 for r in reps_series):
             supabase.table("performances").insert({
                 "user_id": user,
                 "date": d.isoformat(),
