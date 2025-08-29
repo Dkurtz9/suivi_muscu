@@ -21,6 +21,9 @@ menu = st.sidebar.radio("Navigation", ["Ajouter une performance", "Voir mes perf
 # -------------------------------
 # Ajouter une performance
 # -------------------------------
+# -------------------------------
+# Ajouter une performance
+# -------------------------------
 if menu == "Ajouter une performance":
     st.header("➕ Ajouter une performance")
 
@@ -40,12 +43,15 @@ if menu == "Ajouter une performance":
     exercises_data = supabase.table("exercises").select("*").eq("seance_id", seance_id).execute() if seance_id else None
     exercises = [e["name"] for e in exercises_data.data] if exercises_data and exercises_data.data else []
     exo = st.selectbox("Exercice", options=exercises)
-    
-    poids = st.number_input("Poids (kg)", min_value=0.0, step=0.5)
+
+    # Poids ou poids du corps
     poids_du_corps = st.checkbox("Poids du corps")
     if poids_du_corps:
-        poids = 0
+        poids = 0.0
+    else:
+        poids = st.number_input("Poids (kg)", min_value=0.0, step=0.5)
 
+    # Séries et répétitions
     nombre_series = st.selectbox("Nombre de séries", options=[1,2,3,4])
     reps_series = []
     for i in range(nombre_series):
@@ -55,14 +61,16 @@ if menu == "Ajouter une performance":
     notes = st.text_area("Notes (optionnel)")
     d = st.date_input("Date", value=date.today())
 
+    # Bouton enregistrer
     if st.button("Enregistrer"):
-        if user and exo and ((poids > 0) or poids_du_corps) and any(reps_series):
+        if user and exo and (poids > 0.0 or poids_du_corps) and any(reps_series):
+            # On convertit le poids en float compatible Supabase numeric
             supabase.table("performances").insert({
                 "user_id": user_id,
                 "seance_id": seance_id,
                 "seance_name": seance_selectionnee,
                 "exercice": exo,
-                "poids": poids,
+                "poids": float(poids),
                 "reps_series": reps_series,
                 "notes": notes.strip(),
                 "date": d.isoformat()
@@ -71,22 +79,25 @@ if menu == "Ajouter une performance":
         else:
             st.error("⚠️ Remplis tous les champs obligatoires.")
 
-    # Afficher les performances du jour
+    # Affichage des performances du jour
     data = supabase.table("performances").select("*").eq("user_id", user_id).eq("date", d.isoformat()).execute()
     df_display = pd.DataFrame(data.data)
     if not df_display.empty:
         df_display["reps_series"] = df_display["reps_series"].apply(lambda x: str(x or []))
         if "seance_name" not in df_display.columns:
             df_display["seance_name"] = "Inconnue"
+
         columns_to_show = ["date", "seance_name", "exercice", "poids", "reps_series", "notes"]
         st.subheader("📋 Performances du jour")
         st.dataframe(df_display[columns_to_show])
+
         # Boutons suppression
         for idx, row in df_display.iterrows():
             if st.button(f"Supprimer {row['exercice']}"):
                 supabase.table("performances").delete().eq("id", row["id"]).execute()
                 st.success(f"Performance {row['exercice']} supprimée !")
                 st.experimental_rerun()
+
 
 # -------------------------------
 # Voir mes performances
