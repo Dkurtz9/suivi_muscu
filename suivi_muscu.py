@@ -80,26 +80,27 @@ if menu == "Ajouter une performance":
         else:
             st.error("⚠️ Remplis tous les champs obligatoires.")
 
-    # Affichage des performances du jour
-    if user_id:
-        data = supabase.table("performances").select("*").eq("user_id", user_id).eq("date", d.isoformat()).execute()
-        df_display = pd.DataFrame(data.data)
-        if not df_display.empty:
-            # Assurer que la colonne seance_name existe
-            if "seance_name" not in df_display.columns:
-                df_display["seance_name"] = "Inconnue"
-            df_display["reps_series"] = df_display["reps_series"].apply(lambda x: str(x or []))
+   # ----- Visualiser les performances sous forme de tableau mobile-friendly -----
+    st.subheader(f"📋 Performances de {user}")
+    data = supabase.table("performances").select("*").eq("user_id", user).order("date", desc=True).execute()
+    df = pd.DataFrame(data.data)
 
-            columns_to_show = ["date", "seance_name", "exercice", "poids", "reps_series", "notes"]
-            st.subheader("📋 Performances du jour")
-            st.dataframe(df_display[columns_to_show])
+    if not df.empty:
+        df["reps_series"] = df["reps_series"].apply(lambda x: str(x or []))
+        df_display = df[["date", "exercice", "poids", "reps_series", "notes"]]
 
-            # Boutons suppression
-            for idx, row in df_display.iterrows():
-                if st.button(f"Supprimer {row['exercice']}"):
-                    supabase.table("performances").delete().eq("id", row["id"]).execute()
-                    st.success(f"Performance {row['exercice']} supprimée !")
-                    st.experimental_rerun()
+        # Affichage du tableau
+        st.table(df_display)
+
+        # Sélecteur de ligne à supprimer
+        options = [f"{row['date']} | {row['exercice']}" for idx, row in df.iterrows()]
+        ligne_a_supprimer = st.selectbox("Sélectionne la performance à supprimer", options)
+
+        if st.button("Supprimer la ligne sélectionnée"):
+            date_sel, exo_sel = ligne_a_supprimer.split(" | ")
+            supabase.table("performances").delete().eq("user_id", user).eq("date", date_sel).eq("exercice", exo_sel).execute()
+            st.success("✅ Performance supprimée !")
+            st.experimental_rerun()
 
 # -------------------------------
 # Voir mes performances
