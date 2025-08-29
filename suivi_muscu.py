@@ -29,6 +29,8 @@ if menu == "Ajouter une performance":
     st.header("➕ Ajouter une performance")
 
     # ----- Sélection de l'utilisateur -----
+    users_data = supabase.table("performances").select("user_id").execute()
+    users = sorted(list({row["user_id"] for row in users_data.data}))
     user = st.selectbox("Utilisateur", options=users if users else ["nouvel utilisateur"])
     if user == "nouvel utilisateur":
         user = st.text_input("Nom du nouvel utilisateur")
@@ -68,35 +70,38 @@ if menu == "Ajouter une performance":
             }).execute()
             st.success("✅ Performance enregistrée !")
 
-    # ----- Visualiser et éditer les performances -----
+    # ----- Visualiser toutes les performances de l'utilisateur sous forme de tableau -----
     st.subheader(f"📋 Performances de {user}")
     data = supabase.table("performances").select("*").eq("user_id", user).order("date", desc=True).execute()
     df = pd.DataFrame(data.data)
 
     if not df.empty:
+        # Convertir reps_series en chaîne pour l'affichage dans le tableau
+        df["reps_series"] = df["reps_series"].apply(lambda x: x or [])
+        df_display = df[["id", "date", "exercice", "poids", "reps_series", "notes"]]
+        st.dataframe(df_display)
+
+        # ----- Modifier ou supprimer une performance -----
         for idx, row in df.iterrows():
-            st.write(f"**{row['date']} | {row['exercice']}**")
-            col1, col2, col3 = st.columns([3, 1, 1])
+            col1, col2 = st.columns([1,1])
+            if col1.button("Modifier", key=f"mod_{row['id']}"):
+                st.write(f"**Modifier la performance du {row['date']} | {row['exercice']}**")
+                new_poids = st.number_input("Poids (kg)", value=row["poids"], key=f"poids_{row['id']}")
+                reps_series = row["reps_series"] or []
+                new_reps_series = []
+                for i, r in enumerate(reps_series):
+                    new_r = st.number_input(f"Répétitions série {i+1}", value=r, min_value=0, step=1, key=f"mod_rep_{row['id']}_{i}")
+                    new_reps_series.append(new_r)
+                new_notes = st.text_area("Notes", value=row["notes"], key=f"notes_{row['id']}")
+                if st.button("Enregistrer modification", key=f"save_{row['id']}"):
+                    supabase.table("performances").update({
+                        "poids": new_poids,
+                        "reps_series": new_reps_series,
+                        "notes": new_notes
+                    }).eq("id", row["id"]).execute()
+                    st.success("✅ Performance modifiée !")
+                    st.experimental_rerun()
 
-           # Modifier ligne
-if col1.button("Modifier", key=f"mod_{row['id']}"):
-    reps_series = row["reps_series"] or []  # sécurité si None
-    new_poids = st.number_input("Poids (kg)", value=row["poids"], key=f"poids_{row['id']}")
-    new_reps_series = []
-    for i, r in enumerate(reps_series):
-        new_r = st.number_input(f"Répétitions série {i+1}", value=r, min_value=0, step=1, key=f"mod_rep_{row['id']}_{i}")
-        new_reps_series.append(new_r)
-    new_notes = st.text_area("Notes", value=row["notes"], key=f"notes_{row['id']}")
-    if st.button("Enregistrer modification", key=f"save_{row['id']}"):
-        supabase.table("performances").update({
-            "poids": new_poids,
-            "reps_series": new_reps_series,
-            "notes": new_notes
-        }).eq("id", row["id"]).execute()
-        st.success("✅ Performance modifiée !")
-        st.experimental_rerun
-
-            # Supprimer ligne
             if col2.button("Supprimer", key=f"del_{row['id']}"):
                 supabase.table("performances").delete().eq("id", row["id"]).execute()
                 st.success("✅ Performance supprimée !")
