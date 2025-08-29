@@ -29,93 +29,96 @@ menu = st.sidebar.radio("Navigation", [
 if menu == "Ajouter une performance":
     st.header("➕ Ajouter une performance")
 
-    # Utilisateurs
+    # Sélection utilisateur
     users_data = supabase.table("users").select("*").execute()
     users = [u["name"] for u in users_data.data] if users_data.data else []
+    user = st.selectbox("Utilisateur", options=users)
+    user_id = [u["id"] for u in users_data.data if u["name"] == user][0] if users else None
 
-    if not users:
-        st.warning("Aucun utilisateur disponible")
+    # Sélection séance
+    seances_data = supabase.table("seances").select("*").execute()
+    seances = [s["name"] for s in seances_data.data] if seances_data.data else []
+    seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
+    seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0] if seances else None
+
+    # Sélection exercice
+    exercises_data = supabase.table("exercises").select("*").eq("seance_id", seance_id).execute() if seance_id else None
+    exercises = [e["name"] for e in exercises_data.data] if exercises_data and exercises_data.data else []
+    exo = st.selectbox("Exercice", options=exercises)
+
+    # ----- Poids avec présaisie du dernier poids -----
+    last_perf_data = supabase.table("performances")\
+        .select("poids")\
+        .eq("user_id", user_id)\
+        .eq("exercice", exo)\
+        .order("date", desc=True)\
+        .limit(1)\
+        .execute()
+    last_poids = last_perf_data.data[0]["poids"] if last_perf_data.data else 0
+
+    poids_option = st.radio("Poids", ["Poids du corps", "Avec poids"])
+    if poids_option == "Poids du corps":
+        poids = 0
     else:
-        user = st.selectbox("Utilisateur", options=users)
-        user_id = [u["id"] for u in users_data.data if u["name"] == user][0]
-
-        # Séances
-        seances_data = supabase.table("seances").select("*").execute()
-        seances = [s["name"] for s in seances_data.data] if seances_data.data else []
-        seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
-        seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0] if seances else None
-
-        # Exercices
-        exercises_data = supabase.table("exercises").select("*").eq("seance_id", seance_id).execute() if seance_id else None
-        exercises = [e["name"] for e in exercises_data.data] if exercises_data and exercises_data.data else []
-        exo = st.selectbox("Exercice", options=exercises)
-
-        # Poids
-        poids_option = st.radio("Poids", ["Poids du corps", "Avec poids"])
-        if poids_option == "Poids du corps":
+        poids_input = st.text_input("Poids (kg)", value=str(last_poids) if last_poids > 0 else "")
+        try:
+            poids = int(float(poids_input)) if poids_input else 0
+        except ValueError:
+            st.error("⚠️ Saisis un nombre entier valide pour le poids.")
             poids = 0
+
+    # Séries et répétitions
+    nombre_series = st.selectbox("Nombre de séries", options=[1,2,3,4])
+    reps_series = []
+    for i in range(nombre_series):
+        reps = st.number_input(f"Répétitions série {i+1}", min_value=0, step=1)
+        reps_series.append(reps)
+
+    notes = st.text_area("Notes (optionnel)")
+    d = st.date_input("Date", value=date.today())
+
+    # Bouton enregistrer
+    if st.button("Enregistrer"):
+        if user and exo and (poids > 0 or poids_option == "Poids du corps") and all(r > 0 for r in reps_series):
+            supabase.table("performances").insert({
+                "user_id": user_id,
+                "seance_id": seance_id,
+                "seance_name": seance_selectionnee,
+                "exercice": exo,
+                "poids": poids,
+                "reps_series": reps_series,
+                "notes": notes.strip(),
+                "date": d.isoformat()
+            }).execute()
+            st.success("✅ Performance enregistrée !")
         else:
-            poids_input = st.text_input("Poids (kg)", "")
-            try:
-                poids = int(float(poids_input)) if poids_input else 0
-            except ValueError:
-                st.error("⚠️ Saisis un nombre entier valide pour le poids.")
-                poids = 0
+            st.error("⚠️ Remplis tous les champs obligatoires.")
 
-        # Séries
-        nombre_series = st.selectbox("Nombre de séries", options=[1, 2, 3, 4])
-        reps_series = []
-        for i in range(nombre_series):
-            reps = st.number_input(f"Répétitions série {i+1}", min_value=0, step=1)
-            reps_series.append(reps)
+    # Affichage des performances du jour
+    st.subheader(f"📋 Performances de {user} - {date.today().isoformat()}")
+    data = supabase.table("performances").select("*")\
+        .eq("user_id", user_id)\
+        .eq("date", date.today().isoformat())\
+        .order("date", desc=True).execute()
+    df = pd.DataFrame(data.data)
 
-        # Notes et date
-        notes = st.text_area("Notes (optionnel)")
-        d = st.date_input("Date", value=date.today())
+    if not df.empty:
+        df["reps_series"] = df["reps_series"].apply(lambda x: str(x or []))
+        df_display = df[["date", "exercice", "poids", "reps_series", "notes"]]
+        st.table(df_display)
 
-        # Enregistrer
-        if st.button("Enregistrer"):
-            if user and exo and (poids > 0 or poids_option == "Poids du corps") and all(r > 0 for r in reps_series):
-                supabase.table("performances").insert({
-                    "user_id": user_id,
-                    "seance_id": seance_id,
-                    "seance_name": seance_selectionnee,
-                    "exercice": exo,
-                    "poids": poids,
-                    "reps_series": reps_series,
-                    "notes": notes.strip(),
-                    "date": d.isoformat()
-                }).execute()
-                st.success("✅ Performance enregistrée !")
-                st.experimental_rerun()
-            else:
-                st.error("⚠️ Remplis tous les champs obligatoires.")
-
-        # Affichage des performances du jour
-        st.subheader(f"📋 Performances de {user} - {date.today().isoformat()}")
-        data = supabase.table("performances").select("*")\
-            .eq("user_id", user_id).eq("date", date.today().isoformat())\
-            .order("date", desc=True).execute()
-        df = pd.DataFrame(data.data)
-
-        if not df.empty:
-            df["reps_series"] = df["reps_series"].apply(lambda x: str(x or []))
-            df_display = df[["date", "exercice", "poids", "reps_series", "notes"]]
-            st.table(df_display)
-
-            options = [f"{row['date']} | {row['exercice']}" for idx, row in df.iterrows()]
-            ligne_a_supprimer = st.selectbox("Sélectionne la performance à supprimer", options)
-            if st.button("Supprimer la ligne sélectionnée"):
-                date_sel, exo_sel = ligne_a_supprimer.split(" | ")
-                supabase.table("performances")\
-                    .delete()\
-                    .eq("user_id", user_id)\
-                    .eq("date", date_sel)\
-                    .eq("exercice", exo_sel)\
-                    .execute()
-                st.success("✅ Performance supprimée !")
-                st.experimental_rerun()
-
+        options = [f"{row['date']} | {row['exercice']}" for idx, row in df.iterrows()]
+        ligne_a_supprimer = st.selectbox("Sélectionne la performance à supprimer", options)
+        if st.button("Supprimer la ligne sélectionnée"):
+            date_sel, exo_sel = ligne_a_supprimer.split(" | ")
+            supabase.table("performances")\
+                .delete()\
+                .eq("user_id", user_id)\
+                .eq("date", date_sel)\
+                .eq("exercice", exo_sel)\
+                .execute()
+            st.success("✅ Performance supprimée !")
+            st.experimental_rerun()
 
 # -------------------------------
 # Voir mes performances
