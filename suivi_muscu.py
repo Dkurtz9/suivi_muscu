@@ -172,22 +172,35 @@ elif menu == "Voir mes performances":
 # Gérer mes séances et exercices
 # -------------------------------
 elif menu == "Gérer mes séances":
+elif menu == "Gérer mes séances":
     st.header("📋 Gestion des séances et exercices")
 
+    # Récupération des séances
     seances_data = supabase.table("seances").select("*").execute()
     seances = [s["name"] for s in seances_data.data]
     seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
     seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0]
 
+    # Modifier le nom de la séance
     new_name = st.text_input("Nouveau nom de la séance", value=seance_selectionnee)
     if st.button("Modifier le nom de la séance"):
         supabase.table("seances").update({"name": new_name}).eq("id", seance_id).execute()
         st.success("Nom de la séance modifié !")
         st.experimental_rerun()
 
+    # Récupération des exercices
     exercises_data = supabase.table("exercises").select("*").eq("seance_id", seance_id).execute()
     exercises = [e["name"] for e in exercises_data.data]
 
+    # Tableau des exercices
+    if exercises_data.data:
+        df_exos = pd.DataFrame(exercises_data.data)
+        st.subheader("📋 Exercices de la séance")
+        st.table(df_exos[["name"]])  # Affiche tous les exercices de la séance
+    else:
+        st.info("Aucun exercice pour cette séance")
+
+    # Ajouter un nouvel exercice
     st.subheader("Ajouter un nouvel exercice")
     new_exo = st.text_input("Nom de l'exercice")
     if st.button("Ajouter l'exercice"):
@@ -196,6 +209,7 @@ elif menu == "Gérer mes séances":
             st.success("Exercice ajouté !")
             st.experimental_rerun()
 
+    # Supprimer un exercice
     st.subheader("Supprimer un exercice")
     if exercises:
         exo_sup = st.selectbox("Sélectionner un exercice à supprimer", exercises)
