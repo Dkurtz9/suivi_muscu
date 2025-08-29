@@ -172,7 +172,6 @@ elif menu == "Voir mes performances":
 # Gérer mes séances et exercices
 # -------------------------------
 elif menu == "Gérer mes séances":
-elif menu == "Gérer mes séances":
     st.header("📋 Gestion des séances et exercices")
 
     # Récupération des séances
