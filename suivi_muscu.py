@@ -116,15 +116,31 @@ if menu == "Gérer les séances":
             else:
                 supabase.table("seances").insert({"name": nouvelle_seance}).execute()
                 st.success(f"✅ Séance '{nouvelle_seance}' créée !")
+                st.experimental_rerun()  # recharge la page pour actualiser la liste
 
-    # ----- Ajouter des exercices à une séance existante -----
-    st.subheader("➕ Ajouter des exercices à une séance existante")
+    # ----- Modifier le nom d'une séance -----
+    st.subheader("✏️ Modifier le nom d'une séance existante")
     seances_data = supabase.table("seances").select("*").execute()
     seances = [s["name"] for s in seances_data.data]
     if seances:
-        seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
+        seance_a_modifier = st.selectbox("Sélectionner une séance à modifier", options=seances)
+        nouveau_nom = st.text_input("Nouveau nom de la séance")
+        if st.button("Modifier le nom"):
+            if nouveau_nom:
+                existing = supabase.table("seances").select("*").eq("name", nouveau_nom).execute()
+                if existing.data:
+                    st.warning("Une séance avec ce nom existe déjà.")
+                else:
+                    seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_a_modifier][0]
+                    supabase.table("seances").update({"name": nouveau_nom}).eq("id", seance_id).execute()
+                    st.success(f"✅ La séance '{seance_a_modifier}' a été renommée en '{nouveau_nom}' !")
+                    st.experimental_rerun()
 
-        # Ajouter un exercice
+    # ----- Ajouter des exercices à une séance existante -----
+    st.subheader("➕ Ajouter des exercices à une séance existante")
+    if seances:
+        seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances, key="seance_exo")
+
         nouveau_exo = st.text_input("Nom du nouvel exercice à ajouter")
         if st.button("Ajouter l'exercice"):
             if seance_selectionnee and nouveau_exo:
@@ -135,6 +151,7 @@ if menu == "Gérer les séances":
                 else:
                     supabase.table("exercises").insert({"name": nouveau_exo, "seance_id": seance_id}).execute()
                     st.success(f"✅ Exercice '{nouveau_exo}' ajouté à la séance '{seance_selectionnee}' !")
+                    st.experimental_rerun()
 
         # ----- Visualiser et supprimer les exercices -----
         st.subheader(f"📋 Exercices dans la séance '{seance_selectionnee}'")
@@ -152,3 +169,4 @@ if menu == "Gérer les séances":
                     st.experimental_rerun()  # recharge la page pour actualiser la liste
         else:
             st.info("Aucun exercice dans cette séance.")
+
