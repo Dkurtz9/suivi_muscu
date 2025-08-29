@@ -1,0 +1,5 @@
+streamlit>=1.20
+pandas
+matplotlib
+sqlalchemy
+psycopg2-binary
