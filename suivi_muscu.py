@@ -153,48 +153,63 @@ elif menu == "Ajouter une performance":
 # -------------------------------
 # Voir mes performances
 # -------------------------------
+# -------------------------------
+# Voir mes performances
+# -------------------------------
 elif menu == "Voir mes performances":
     st.header("📊 Visualiser les performances")
 
+    # Sélection de l'utilisateur
     users_data = supabase.table("users").select("*").execute()
-    users = [u["name"] for u in users_data.data]
-    user = st.selectbox("Utilisateur", options=users)
-    user_id = [u["id"] for u in users_data.data if u["name"] == user][0]
-
-    data = supabase.table("performances").select("*").eq("user_id", user_id).execute()
-    df = pd.DataFrame(data.data)
-
-    if df.empty:
-        st.warning("Aucune donnée trouvée.")
+    users = [u["name"] for u in users_data.data] if users_data.data else []
+    if not users:
+        st.warning("Aucun utilisateur disponible")
     else:
-        st.subheader("Toutes les performances")
-        st.dataframe(df)
+        user = st.selectbox("Utilisateur", options=users)
+        user_id = [u["id"] for u in users_data.data if u["name"] == user][0]
 
-        # PR par exercice
-        st.subheader("🏆 PR (Poids max) par exercice")
-        exercises_data = supabase.table("exercises").select("*").execute()
-        df_exercises = pd.DataFrame(exercises_data.data)
-        pr_list = []
-        for ex in df["exercice"].unique():
-            subset = df[df["exercice"] == ex]
-            idx_max = subset["poids"].idxmax()
-            seance_id = subset.loc[idx_max, "seance_id"]
-            seance_name = df_exercises.loc[df_exercises["id"] == seance_id, "name"].values[0] if not df_exercises.empty else "Inconnue"
-            pr_row = {
-                "exercice": ex,
-                "seance": seance_name,
-                "poids_max": subset.loc[idx_max, "poids"],
-                "date": subset.loc[idx_max, "date"]
-            }
-            pr_list.append(pr_row)
-        df_pr = pd.DataFrame(pr_list)
-        st.table(df_pr.sort_values(by="seance"))
+        # Récupérer toutes les performances de l'utilisateur
+        data = supabase.table("performances").select("*").eq("user_id", user_id).execute()
+        df = pd.DataFrame(data.data)
 
-        # Graphiques
-        st.subheader("Évolution du poids par exercice")
-        for ex in df["exercice"].unique():
-            subset = df[df["exercice"] == ex]
-            st.line_chart(subset, x="date", y="poids", use_container_width=True)
+        if df.empty:
+            st.warning("Aucune performance trouvée pour cet utilisateur.")
+        else:
+            # Afficher toutes les performances
+            st.subheader("📋 Toutes les performances")
+            df_display = df.copy()
+            df_display["reps_series"] = df_display["reps_series"].apply(lambda x: str(x or []))
+            st.dataframe(df_display[["date", "seance_name", "exercice", "poids", "reps_series", "notes"]])
+
+            # Calcul des PR (poids max) par exercice
+            st.subheader("🏆 PR (Poids max) par exercice")
+            pr_list = []
+            for ex in df["exercice"].unique():
+                subset = df[df["exercice"] == ex]
+                if not subset.empty:
+                    idx_max = subset["poids"].idxmax()
+                    seance_name = subset.loc[idx_max, "seance_name"] if "seance_name" in subset.columns else "Inconnue"
+                    pr_row = {
+                        "exercice": ex,
+                        "seance": seance_name,
+                        "poids_max": subset.loc[idx_max, "poids"],
+                        "date": subset.loc[idx_max, "date"]
+                    }
+                    pr_list.append(pr_row)
+
+            df_pr = pd.DataFrame(pr_list)
+            if not df_pr.empty:
+                st.table(df_pr.sort_values(by="seance"))
+            else:
+                st.info("Aucun PR disponible.")
+
+            # Graphiques d’évolution du poids par exercice
+            st.subheader("📈 Évolution du poids par exercice")
+            for ex in df["exercice"].unique():
+                subset = df[df["exercice"] == ex]
+                if not subset.empty:
+                    st.line_chart(subset, x="date", y="poids", use_container_width=True)
+
 
 # -------------------------------
 # Gérer mes séances
