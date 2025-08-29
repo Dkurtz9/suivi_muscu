@@ -63,7 +63,7 @@ if menu == "Ajouter une performance":
                 "date": d.isoformat(),
                 "exercice": exo,
                 "poids": poids,
-                "reps_series": reps_series,
+                "reps_series": reps_series or [],
                 "notes": notes.strip()
             }).execute()
             st.success("✅ Performance enregistrée !")
@@ -78,23 +78,23 @@ if menu == "Ajouter une performance":
             st.write(f"**{row['date']} | {row['exercice']}**")
             col1, col2, col3 = st.columns([3, 1, 1])
 
-            # Modifier ligne
-            if col1.button("Modifier", key=f"mod_{row['id']}"):
-                # Affiche un formulaire pré-rempli
-                new_poids = st.number_input("Poids (kg)", value=row["poids"], key=f"poids_{row['id']}")
-                new_reps_series = []
-                for i, r in enumerate(row["reps_series"]):
-                    new_r = st.number_input(f"Répétitions série {i+1}", value=r, min_value=0, step=1, key=f"mod_rep_{row['id']}_{i}")
-                    new_reps_series.append(new_r)
-                new_notes = st.text_area("Notes", value=row["notes"], key=f"notes_{row['id']}")
-                if st.button("Enregistrer modification", key=f"save_{row['id']}"):
-                    supabase.table("performances").update({
-                        "poids": new_poids,
-                        "reps_series": new_reps_series,
-                        "notes": new_notes
-                    }).eq("id", row["id"]).execute()
-                    st.success("✅ Performance modifiée !")
-                    st.experimental_rerun()
+           # Modifier ligne
+if col1.button("Modifier", key=f"mod_{row['id']}"):
+    reps_series = row["reps_series"] or []  # sécurité si None
+    new_poids = st.number_input("Poids (kg)", value=row["poids"], key=f"poids_{row['id']}")
+    new_reps_series = []
+    for i, r in enumerate(reps_series):
+        new_r = st.number_input(f"Répétitions série {i+1}", value=r, min_value=0, step=1, key=f"mod_rep_{row['id']}_{i}")
+        new_reps_series.append(new_r)
+    new_notes = st.text_area("Notes", value=row["notes"], key=f"notes_{row['id']}")
+    if st.button("Enregistrer modification", key=f"save_{row['id']}"):
+        supabase.table("performances").update({
+            "poids": new_poids,
+            "reps_series": new_reps_series,
+            "notes": new_notes
+        }).eq("id", row["id"]).execute()
+        st.success("✅ Performance modifiée !")
+        st.experimental_rerun
 
             # Supprimer ligne
             if col2.button("Supprimer", key=f"del_{row['id']}"):
