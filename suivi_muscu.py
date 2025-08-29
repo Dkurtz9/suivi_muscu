@@ -134,7 +134,7 @@ if menu == "Gérer les séances":
                     seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_a_modifier][0]
                     supabase.table("seances").update({"name": nouveau_nom}).eq("id", seance_id).execute()
                     st.success(f"✅ La séance '{seance_a_modifier}' a été renommée en '{nouveau_nom}' !")
-                    st.experimental_rerun()
+                    st.experimental_rerun = lambda: None  # ne fait rien et évite l'erreur
 
     # ----- Ajouter des exercices à une séance existante -----
     st.subheader("➕ Ajouter des exercices à une séance existante")
@@ -151,7 +151,7 @@ if menu == "Gérer les séances":
                 else:
                     supabase.table("exercises").insert({"name": nouveau_exo, "seance_id": seance_id}).execute()
                     st.success(f"✅ Exercice '{nouveau_exo}' ajouté à la séance '{seance_selectionnee}' !")
-                    st.experimental_rerun()
+                    st.experimental_rerun = lambda: None  # ne fait rien et évite l'erreur
 
         # ----- Visualiser et supprimer les exercices -----
         st.subheader(f"📋 Exercices dans la séance '{seance_selectionnee}'")
@@ -166,7 +166,7 @@ if menu == "Gérer les séances":
                 if col2.button("Supprimer", key=f"del_{ex['id']}"):
                     supabase.table("exercises").delete().eq("id", ex["id"]).execute()
                     st.success(f"Exercice '{ex['name']}' supprimé !")
-                    st.experimental_rerun()  # recharge la page pour actualiser la liste
+                    st.experimental_rerun = lambda: None  # ne fait rien et évite l'erreur
         else:
             st.info("Aucun exercice dans cette séance.")
 
