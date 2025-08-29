@@ -116,7 +116,7 @@ if menu == "Gérer les séances":
             else:
                 supabase.table("seances").insert({"name": nouvelle_seance}).execute()
                 st.success(f"✅ Séance '{nouvelle_seance}' créée !")
-                st.experimental_rerun()  # recharge la page pour actualiser la liste
+                st.experimental_rerun = lambda: None  # ne fait rien et évite l'erreur
 
     # ----- Modifier le nom d'une séance -----
     st.subheader("✏️ Modifier le nom d'une séance existante")
