@@ -81,38 +81,24 @@ if menu == "Ajouter une performance":
             }).execute()
             st.success("✅ Performance enregistrée !")
 
-    # ----- Visualiser les performances sous forme de tableau avec suppression -----
+    # ----- Visualiser les performances sous forme de tableau mobile-friendly -----
     st.subheader(f"📋 Performances de {user}")
     data = supabase.table("performances").select("*").eq("user_id", user).order("date", desc=True).execute()
     df = pd.DataFrame(data.data)
 
     if not df.empty:
-        df["reps_series"] = df["reps_series"].apply(lambda x: x or [])
+        df["reps_series"] = df["reps_series"].apply(lambda x: str(x or []))
+        df_display = df[["date", "exercice", "poids", "reps_series", "notes"]]
 
-        # Libellé des colonnes
-        cols = st.columns([2, 2, 1, 1, 2, 1])
-        cols[0].write("Date")
-        cols[1].write("Exercice")
-        cols[2].write("Poids (kg)")
-        cols[3].write("Répétitions")
-        cols[4].write("Notes")
-        cols[5].write("Actions")
+        # Affichage du tableau lisible sur mobile
+        st.table(df_display)
 
-        # Affichage ligne par ligne
+        # Boutons de suppression par ligne
         for idx, row in df.iterrows():
-            cols = st.columns([2, 2, 1, 1, 2, 1])
-            cols[0].write(row["date"])
-            cols[1].write(row["exercice"])
-            cols[2].write(row["poids"])
-            cols[3].write(str(row["reps_series"]))
-            cols[4].write(row["notes"])
-
-            # Bouton Supprimer
-            if cols[5].button("Supprimer", key=f"del_{row['id']}"):
+            if st.button(f"Supprimer {row['date']} | {row['exercice']}", key=f"del_{row['id']}"):
                 supabase.table("performances").delete().eq("id", row["id"]).execute()
                 st.success("✅ Performance supprimée !")
                 st.experimental_rerun()
-
 
 # -------------------------------
 # Visualiser les performances
