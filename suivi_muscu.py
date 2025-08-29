@@ -90,15 +90,19 @@ if menu == "Ajouter une performance":
         df["reps_series"] = df["reps_series"].apply(lambda x: str(x or []))
         df_display = df[["date", "exercice", "poids", "reps_series", "notes"]]
 
-        # Affichage du tableau lisible sur mobile
+        # Affichage du tableau
         st.table(df_display)
 
-        # Boutons de suppression par ligne
-        for idx, row in df.iterrows():
-            if st.button(f"Supprimer {row['date']} | {row['exercice']}", key=f"del_{row['id']}"):
-                supabase.table("performances").delete().eq("id", row["id"]).execute()
-                st.success("✅ Performance supprimée !")
-                st.experimental_rerun()
+        # Sélecteur de ligne à supprimer
+        options = [f"{row['date']} | {row['exercice']}" for idx, row in df.iterrows()]
+        ligne_a_supprimer = st.selectbox("Sélectionne la performance à supprimer", options)
+
+        if st.button("Supprimer la ligne sélectionnée"):
+            date_sel, exo_sel = ligne_a_supprimer.split(" | ")
+            supabase.table("performances").delete().eq("user_id", user).eq("date", date_sel).eq("exercice", exo_sel).execute()
+            st.success("✅ Performance supprimée !")
+            st.experimental_rerun()
+
 
 # -------------------------------
 # Visualiser les performances
