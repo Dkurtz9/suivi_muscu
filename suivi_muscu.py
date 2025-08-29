@@ -41,17 +41,17 @@ if menu == "Ajouter une performance":
     exercises = [e["name"] for e in exercises_data.data] if exercises_data and exercises_data.data else []
     exo = st.selectbox("Exercice", options=exercises)
 
-    # Poids ou poids du corps
-    poids_du_corps = st.checkbox("Poids du corps")
-    if poids_du_corps:
-        poids = 0.0
+    # ----- Poids avec radio pour mobile -----
+    poids_option = st.radio("Poids", ["Poids du corps", "Avec poids"])
+    if poids_option == "Poids du corps":
+        poids = 0
     else:
-        poids_input = st.text_input("Poids (kg)", value="")
+        poids_input = st.text_input("Poids (kg)", "")
         try:
-            poids = float(poids_input) if poids_input else 0.0
+            poids = int(float(poids_input)) if poids_input else 0
         except ValueError:
-            st.error("⚠️ Saisis un nombre valide pour le poids")
-            poids = None
+            st.error("⚠️ Saisis un nombre entier valide pour le poids.")
+            poids = 0
 
     # Séries et répétitions
     nombre_series = st.selectbox("Nombre de séries", options=[1,2,3,4])
