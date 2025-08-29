@@ -80,7 +80,7 @@ if menu == "Ajouter une performance":
         else:
             st.error("⚠️ Remplis tous les champs obligatoires.")
 
-    # ----- Visualiser les performances du jour -----
+    # Affichage des performances du jour
     st.subheader(f"📋 Performances de {user} - {date.today().isoformat()}")
     data = supabase.table("performances").select("*")\
         .eq("user_id", user).eq("date", date.today().isoformat())\
@@ -92,7 +92,6 @@ if menu == "Ajouter une performance":
         df_display = df[["date", "exercice", "poids", "reps_series", "notes"]]
         st.table(df_display)
 
-        # Selectbox pour supprimer une ligne
         options = [f"{row['date']} | {row['exercice']}" for idx, row in df.iterrows()]
         ligne_a_supprimer = st.selectbox("Sélectionne la performance à supprimer", options)
         if st.button("Supprimer la ligne sélectionnée"):
@@ -105,7 +104,6 @@ if menu == "Ajouter une performance":
                 .execute()
             st.success("✅ Performance supprimée !")
             st.experimental_rerun()
-
 # -------------------------------
 # Voir mes performances
 # -------------------------------
