@@ -110,7 +110,6 @@ if menu == "Gérer les séances":
     nouvelle_seance = st.text_input("Nom de la séance")
     if st.button("Créer la séance"):
         if nouvelle_seance:
-            # Vérifier que la séance n'existe pas déjà
             existing = supabase.table("seances").select("*").eq("name", nouvelle_seance).execute()
             if existing.data:
                 st.warning("Cette séance existe déjà.")
@@ -118,23 +117,38 @@ if menu == "Gérer les séances":
                 supabase.table("seances").insert({"name": nouvelle_seance}).execute()
                 st.success(f"✅ Séance '{nouvelle_seance}' créée !")
 
-    # ----- Ajouter des exercices à une séance -----
+    # ----- Ajouter des exercices à une séance existante -----
     st.subheader("➕ Ajouter des exercices à une séance existante")
     seances_data = supabase.table("seances").select("*").execute()
     seances = [s["name"] for s in seances_data.data]
-    seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
+    if seances:
+        seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
 
-    nouveau_exo = st.text_input("Nom du nouvel exercice à ajouter")
-    if st.button("Ajouter l'exercice"):
-        if seance_selectionnee and nouveau_exo:
-            # Récupérer l'id de la séance
-            seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0]
-            # Vérifier si l'exercice existe déjà pour cette séance
-            existing_exo = supabase.table("exercises").select("*").eq("name", nouveau_exo).eq("seance_id", seance_id).execute()
-            if existing_exo.data:
-                st.warning("Cet exercice existe déjà dans cette séance.")
-            else:
-                supabase.table("exercises").insert({"name": nouveau_exo, "seance_id": seance_id}).execute()
-                st.success(f"✅ Exercice '{nouveau_exo}' ajouté à la séance '{seance_selectionnee}' !")
+        # Ajouter un exercice
+        nouveau_exo = st.text_input("Nom du nouvel exercice à ajouter")
+        if st.button("Ajouter l'exercice"):
+            if seance_selectionnee and nouveau_exo:
+                seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0]
+                existing_exo = supabase.table("exercises").select("*").eq("name", nouveau_exo).eq("seance_id", seance_id).execute()
+                if existing_exo.data:
+                    st.warning("Cet exercice existe déjà dans cette séance.")
+                else:
+                    supabase.table("exercises").insert({"name": nouveau_exo, "seance_id": seance_id}).execute()
+                    st.success(f"✅ Exercice '{nouveau_exo}' ajouté à la séance '{seance_selectionnee}' !")
 
+        # ----- Visualiser et supprimer les exercices -----
+        st.subheader(f"📋 Exercices dans la séance '{seance_selectionnee}'")
+        seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0]
+        exercises_data = supabase.table("exercises").select("*").eq("seance_id", seance_id).execute()
+        exercises = exercises_data.data
 
+        if exercises:
+            for ex in exercises:
+                col1, col2 = st.columns([4, 1])
+                col1.write(f"- {ex['name']}")
+                if col2.button("Supprimer", key=f"del_{ex['id']}"):
+                    supabase.table("exercises").delete().eq("id", ex["id"]).execute()
+                    st.success(f"Exercice '{ex['name']}' supprimé !")
+                    st.experimental_rerun()  # recharge la page pour actualiser la liste
+        else:
+            st.info("Aucun exercice dans cette séance.")
