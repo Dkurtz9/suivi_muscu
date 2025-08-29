@@ -50,13 +50,18 @@ if menu == "Ajouter une performance":
         if exo:
             supabase.table("exercises").insert({"name": exo, "seance_id": seance_id}).execute()
 
-    # ----- Saisie du poids en champ texte -----
-    poids_input = st.text_input("Poids (kg)", "")
-    try:
+	# Case à cocher pour poids du corps
+	poids_du_corps = st.checkbox("Poids du corps")
+
+	if poids_du_corps:
+    	poids = 0  # ou None selon ce que tu veux enregistrer dans Supabase
+	else:
+    	poids_input = st.text_input("Poids (kg)", "")
+    	try:
         poids = int(float(poids_input)) if poids_input else 0
-    except ValueError:
-        st.error("⚠️ Saisis un nombre valide pour le poids.")
-        poids = 0.0
+   	 except ValueError:
+        st.error("⚠️ Saisis un nombre entier valide pour le poids.")
+        poids = 0
 
     # ----- Nombre de séries et répétitions -----
     nb_series = st.selectbox("Nombre de séries", [1, 2, 3, 4])
