@@ -118,6 +118,7 @@ elif menu == "Ajouter une performance":
             supabase.table("performances").insert({
                 "user_id": user_id,
                 "seance_id": seance_id,
+		"seance_name": seance_selectionnee,
                 "exercice": exo,
                 "poids": poids,
                 "reps_series": reps_series or [],
