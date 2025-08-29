@@ -50,13 +50,15 @@ if menu == "Ajouter une performance":
         if exo:
             supabase.table("exercises").insert({"name": exo, "seance_id": seance_id}).execute()
 
-    # ----- Performance -----
+    # ----- Saisie du poids en champ texte -----
     poids_input = st.text_input("Poids (kg)", "")
-try:
-    poids = float(poids_input) if poids_input else 0.0
-except ValueError:
-    st.error("⚠️ Saisis un nombre valide pour le poids.")
-    poids = 0.0
+    try:
+        poids = float(poids_input) if poids_input else 0.0
+    except ValueError:
+        st.error("⚠️ Saisis un nombre valide pour le poids.")
+        poids = 0.0
+
+    # ----- Nombre de séries et répétitions -----
     nb_series = st.selectbox("Nombre de séries", [1, 2, 3, 4])
     reps_series = [st.number_input(f"Répétitions série {i+1}", min_value=0, step=1, key=f"rep{i}") for i in range(nb_series)]
     notes = st.text_area("Notes (optionnel)")
@@ -75,7 +77,7 @@ except ValueError:
             }).execute()
             st.success("✅ Performance enregistrée !")
 
-    # ----- Visualiser toutes les performances sous forme de tableau avec suppression -----
+    # ----- Visualiser les performances sous forme de tableau avec suppression -----
     st.subheader(f"📋 Performances de {user}")
     data = supabase.table("performances").select("*").eq("user_id", user).order("date", desc=True).execute()
     df = pd.DataFrame(data.data)
@@ -83,7 +85,7 @@ except ValueError:
     if not df.empty:
         df["reps_series"] = df["reps_series"].apply(lambda x: x or [])
 
-        # Affichage du libellé des colonnes
+        # Libellé des colonnes
         cols = st.columns([2, 2, 1, 1, 2, 1])
         cols[0].write("Date")
         cols[1].write("Exercice")
@@ -106,7 +108,6 @@ except ValueError:
                 supabase.table("performances").delete().eq("id", row["id"]).execute()
                 st.success("✅ Performance supprimée !")
                 st.experimental_rerun()
-
 
 # -------------------------------
 # Visualiser les performances
