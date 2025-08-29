@@ -1,5 +1,6 @@
 streamlit>=1.20
 pandas
+supabase
 matplotlib
 sqlalchemy
 psycopg2-binary
