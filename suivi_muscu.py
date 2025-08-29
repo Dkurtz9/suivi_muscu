@@ -71,7 +71,7 @@ if menu == "Ajouter une performance":
                 "seance_id": seance_id,
                 "seance_name": seance_selectionnee,
                 "exercice": exo,
-                "poids": float(poids),
+                "poids": poids,
                 "reps_series": reps_series,
                 "notes": notes.strip(),
                 "date": d.isoformat()
