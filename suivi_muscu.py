@@ -28,46 +28,34 @@ menu = st.sidebar.radio("Navigation", ["Ajouter une performance", "Voir mes perf
 if menu == "Ajouter une performance":
     st.header("➕ Ajouter une performance")
 
-    # Utilisateur
+    # ----- Sélection de l'utilisateur -----
     user = st.selectbox("Utilisateur", options=users if users else ["nouvel utilisateur"])
     if user == "nouvel utilisateur":
         user = st.text_input("Nom du nouvel utilisateur")
 
-    # Séance
+    # ----- Sélection de la séance et de l'exercice -----
     seances_data = supabase.table("seances").select("*").execute()
-    seances = [row["name"] for row in seances_data.data]
-    seances.append("Nouvelle séance")
-    seance = st.selectbox("Séance", options=seances)
-    if seance == "Nouvelle séance":
-        seance = st.text_input("Nom de la nouvelle séance")
-        # Ajouter la séance si remplie
-        if seance:
-            supabase.table("seances").insert({"name": seance}).execute()
+    seances = [s["name"] for s in seances_data.data]
+    seance_selectionnee = st.selectbox("Séance", options=seances)
 
-    # Exercices associés à la séance
-    exercises_data = supabase.table("exercises").select("*").execute()
-    exercises = [row["name"] for row in exercises_data.data if row["seance_id"] in [s["id"] for s in seances_data.data if s["name"]==seance]]
+    seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0]
+    exercises_data = supabase.table("exercises").select("*").eq("seance_id", seance_id).execute()
+    exercises = [e["name"] for e in exercises_data.data]
     exercises.append("Nouvel exercice")
     exo = st.selectbox("Exercice", options=exercises)
     if exo == "Nouvel exercice":
         exo = st.text_input("Nom du nouvel exercice")
-        # Ajouter l'exercice à la séance
         if exo:
-            seance_id = [s["id"] for s in seances_data.data if s["name"]==seance][0]
             supabase.table("exercises").insert({"name": exo, "seance_id": seance_id}).execute()
 
+    # ----- Performance -----
     poids = st.number_input("Poids (kg)", min_value=0.0, step=0.5)
-
-    # Nombre de séries
     nb_series = st.selectbox("Nombre de séries", [1,2,3,4])
-    reps_series = []
-    for i in range(nb_series):
-        reps = st.number_input(f"Répétitions série {i+1}", min_value=0, step=1, key=f"rep{i}")
-        reps_series.append(reps)
-
+    reps_series = [st.number_input(f"Répétitions série {i+1}", min_value=0, step=1, key=f"rep{i}") for i in range(nb_series)]
     notes = st.text_area("Notes (optionnel)")
     d = st.date_input("Date", value=date.today())
 
+    # ----- Enregistrer la performance -----
     if st.button("Enregistrer"):
         if user and exo and poids > 0 and all(r>0 for r in reps_series):
             supabase.table("performances").insert({
@@ -79,6 +67,41 @@ if menu == "Ajouter une performance":
                 "notes": notes.strip()
             }).execute()
             st.success("✅ Performance enregistrée !")
+
+    # ----- Visualiser et éditer les performances -----
+    st.subheader(f"📋 Performances de {user}")
+    data = supabase.table("performances").select("*").eq("user_id", user).order("date", desc=True).execute()
+    df = pd.DataFrame(data.data)
+
+    if not df.empty:
+        for idx, row in df.iterrows():
+            st.write(f"**{row['date']} | {row['exercice']}**")
+            col1, col2, col3 = st.columns([3, 1, 1])
+
+            # Modifier ligne
+            if col1.button("Modifier", key=f"mod_{row['id']}"):
+                # Affiche un formulaire pré-rempli
+                new_poids = st.number_input("Poids (kg)", value=row["poids"], key=f"poids_{row['id']}")
+                new_reps_series = []
+                for i, r in enumerate(row["reps_series"]):
+                    new_r = st.number_input(f"Répétitions série {i+1}", value=r, min_value=0, step=1, key=f"mod_rep_{row['id']}_{i}")
+                    new_reps_series.append(new_r)
+                new_notes = st.text_area("Notes", value=row["notes"], key=f"notes_{row['id']}")
+                if st.button("Enregistrer modification", key=f"save_{row['id']}"):
+                    supabase.table("performances").update({
+                        "poids": new_poids,
+                        "reps_series": new_reps_series,
+                        "notes": new_notes
+                    }).eq("id", row["id"]).execute()
+                    st.success("✅ Performance modifiée !")
+                    st.experimental_rerun()
+
+            # Supprimer ligne
+            if col2.button("Supprimer", key=f"del_{row['id']}"):
+                supabase.table("performances").delete().eq("id", row["id"]).execute()
+                st.success("✅ Performance supprimée !")
+                st.experimental_rerun()
+
 
 # -------------------------------
 # Visualiser les performances
