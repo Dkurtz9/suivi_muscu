@@ -106,42 +106,52 @@ if not df.empty:
             .execute()
         st.success("✅ Performance supprimée !")
         st.experimental_rerun()
+
 # -------------------------------
 # Voir mes performances
 # -------------------------------
 elif menu == "Voir mes performances":
     st.header("📊 Visualiser les performances")
+
+    # Récupération des utilisateurs
     users_data = supabase.table("users").select("*").execute()
     users = [u["name"] for u in users_data.data] if users_data.data else []
+
     if not users:
         st.warning("Aucun utilisateur disponible")
     else:
+        # Sélection utilisateur
         user = st.selectbox("Utilisateur", options=users)
         user_id = [u["id"] for u in users_data.data if u["name"] == user][0]
 
+        # Récupération des performances
         data = supabase.table("performances").select("*").eq("user_id", user_id).execute()
         df = pd.DataFrame(data.data)
+
         if df.empty:
             st.warning("Aucune performance trouvée pour cet utilisateur.")
         else:
+            # S'assurer que la colonne seance_name existe
             if "seance_name" not in df.columns:
                 df["seance_name"] = "Inconnue"
+
+            # Affichage des reps sous forme lisible
             df["reps_series"] = df["reps_series"].apply(lambda x: str(x or []))
 
+            # Tableau complet de toutes les performances
             st.subheader("📋 Toutes les performances")
             st.dataframe(df[["date","seance_name","exercice","poids","reps_series","notes"]])
 
-            # PR par exercice
+            # PR par exercice (poids max)
             st.subheader("🏆 PR (Poids max) par exercice")
             pr_list = []
             for ex in df["exercice"].unique():
                 subset = df[df["exercice"] == ex]
                 if not subset.empty:
                     idx_max = subset["poids"].idxmax()
-                    seance_name = subset.loc[idx_max, "seance_name"]
                     pr_row = {
                         "exercice": ex,
-                        "seance": seance_name,
+                        "seance": subset.loc[idx_max, "seance_name"],
                         "poids_max": subset.loc[idx_max, "poids"],
                         "date": subset.loc[idx_max, "date"]
                     }
@@ -152,6 +162,7 @@ elif menu == "Voir mes performances":
             else:
                 st.info("Aucun PR disponible.")
 
+            # Graphiques d'évolution du poids par exercice
             st.subheader("📈 Évolution du poids par exercice")
             for ex in df["exercice"].unique():
                 subset = df[df["exercice"] == ex]
