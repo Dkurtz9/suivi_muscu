@@ -135,41 +135,19 @@ elif menu == "Voir mes performances":
         user = st.selectbox("Utilisateur", options=users)
         user_id = [u["id"] for u in users_data.data if u["name"] == user][0]
 
-        # Récupération des performances de l'utilisateur
+        # Récupération des performances
         data = supabase.table("performances").select("*").eq("user_id", user_id).execute()
         df = pd.DataFrame(data.data)
 
         if df.empty:
             st.warning("Aucune performance trouvée pour cet utilisateur.")
         else:
-            # Ajouter colonne seance_name si elle n'existe pas
+            # Ajout colonne seance_name si manquante
             if "seance_name" not in df.columns:
                 df["seance_name"] = "Inconnue"
 
-            # ---- Résumé du nombre de séances ----
-            st.subheader("📋 Nombre de séances par type")
-            summary_list = []
-            for seance in df["seance_name"].unique():
-                subset = df[df["seance_name"] == seance]
-                nb_seances = subset.shape[0]  # nombre de fois que la séance a été faite
-                summary_list.append({"Séance": seance, "Nombre de séances": nb_seances})
-
-            # Ligne totale globale
-            total_global = df.shape[0]  # total de toutes les séances
-            summary_list.append({"Séance": "TOTAL", "Nombre de séances": total_global})
-
-            st.table(pd.DataFrame(summary_list))
-
-            # ---- Graphique d'un exercice ----
-            st.subheader("📈 Graphique d'un exercice")
-            exercice_options = df["exercice"].unique()
-            exercice_sel = st.selectbox("Sélectionne un exercice", options=exercice_options)
-
-            df_exo = df[df["exercice"] == exercice_sel]
-            if not df_exo.empty:
-                st.line_chart(df_exo, x="date", y="poids", use_container_width=True)
-            else:
-                st.info("Aucune performance pour cet exercice.")
+            # Formater les séries
+            df["reps_series"] = df["reps_series"].apply(lambda x: str(x or []))
 
             # ---- PR par exercice ----
             st.subheader("🏆 PR (Poids max) par exercice")
@@ -191,10 +169,27 @@ elif menu == "Voir mes performances":
             else:
                 st.info("Aucun PR disponible.")
 
+            # ---- Nombre de séances ----
+            st.subheader("📋 Nombre de séances")
+            df_summary = df.groupby(["seance_name", "date"]).size().reset_index(name="count")
+            nb_seances_par_seance = df_summary.groupby("seance_name")["date"].count().reset_index(name="Nombre de séances")
+            total_global = df["date"].nunique()
+            nb_seances_par_seance = pd.concat([
+                nb_seances_par_seance,
+                pd.DataFrame([{"seance_name": "TOTAL", "Nombre de séances": total_global}])
+            ], ignore_index=True)
+            st.table(nb_seances_par_seance)
+
+            # ---- Graphique d'évolution du poids par exercice ----
+            st.subheader("📈 Évolution du poids par exercice")
+            exercice_selectionne = st.selectbox("Choisir l'exercice", df["exercice"].unique())
+            subset_graph = df[df["exercice"] == exercice_selectionne]
+            if not subset_graph.empty:
+                st.line_chart(subset_graph[["date", "poids"]].set_index("date"))
+
             # ---- Toutes les performances ----
             st.subheader("📋 Toutes les performances")
-            st.dataframe(df.sort_values(by="date", ascending=False)[["date","seance_name","exercice","poids","reps_series","notes"]])
-
+            st.dataframe(df[["date", "seance_name", "exercice", "poids", "reps_series", "notes"]])
 
 # -------------------------------
 # Gérer mes séances
