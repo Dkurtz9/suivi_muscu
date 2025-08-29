@@ -146,9 +146,21 @@ elif menu == "Voir mes performances":
             if "seance_name" not in df.columns:
                 df["seance_name"] = "Inconnue"
 
-            df["reps_series"] = df["reps_series"].apply(lambda x: str(x or []))
+            # ---- Résumé du nombre de séances ----
+            st.subheader("📋 Nombre de séances par type")
+            summary_list = []
+            for seance in df["seance_name"].unique():
+                subset = df[df["seance_name"] == seance]
+                nb_seances = subset.shape[0]  # nombre de fois que la séance a été faite
+                summary_list.append({"Séance": seance, "Nombre de séances": nb_seances})
 
-            # ---- Sélection de l'exercice pour le graphique ----
+            # Ligne totale globale
+            total_global = df.shape[0]  # total de toutes les séances
+            summary_list.append({"Séance": "TOTAL", "Nombre de séances": total_global})
+
+            st.table(pd.DataFrame(summary_list))
+
+            # ---- Graphique d'un exercice ----
             st.subheader("📈 Graphique d'un exercice")
             exercice_options = df["exercice"].unique()
             exercice_sel = st.selectbox("Sélectionne un exercice", options=exercice_options)
@@ -182,6 +194,7 @@ elif menu == "Voir mes performances":
             # ---- Toutes les performances ----
             st.subheader("📋 Toutes les performances")
             st.dataframe(df.sort_values(by="date", ascending=False)[["date","seance_name","exercice","poids","reps_series","notes"]])
+
 
 # -------------------------------
 # Gérer mes séances
