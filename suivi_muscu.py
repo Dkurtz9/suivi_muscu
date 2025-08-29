@@ -51,7 +51,12 @@ if menu == "Ajouter une performance":
             supabase.table("exercises").insert({"name": exo, "seance_id": seance_id}).execute()
 
     # ----- Performance -----
-    poids = st.number_input("Poids (kg)", min_value=0.0, step=0.5)
+    poids_input = st.text_input("Poids (kg)", "")
+try:
+    poids = float(poids_input) if poids_input else 0.0
+except ValueError:
+    st.error("⚠️ Saisis un nombre valide pour le poids.")
+    poids = 0.0
     nb_series = st.selectbox("Nombre de séries", [1, 2, 3, 4])
     reps_series = [st.number_input(f"Répétitions série {i+1}", min_value=0, step=1, key=f"rep{i}") for i in range(nb_series)]
     notes = st.text_area("Notes (optionnel)")
