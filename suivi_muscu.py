@@ -65,7 +65,7 @@ if menu == "Ajouter une performance":
 
     # Bouton enregistrer
     if st.button("Enregistrer"):
-        if user and exo and (poids is not None and (poids > 0.0 or poids_du_corps)) and any(reps_series):
+        if user and exo and (poids > 0 or poids_option == "Poids du corps") and all(r > 0 for r in reps_series):
             supabase.table("performances").insert({
                 "user_id": user_id,
                 "seance_id": seance_id,
