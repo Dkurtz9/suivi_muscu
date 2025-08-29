@@ -26,37 +26,42 @@ menu = st.sidebar.radio("Navigation", [
 if menu == "Gestion des utilisateurs":
     st.header("👥 Gestion des utilisateurs")
     
-    # Récupération des utilisateurs depuis Supabase
+    # --- Récupération des utilisateurs ---
     users_data = supabase.table("users").select("*").execute()
-    users = [u["name"] for u in users_data.data]
-
-    # --- Affichage du tableau avec date de création ---
     if users_data.data:
         df_users = pd.DataFrame(users_data.data)
         st.subheader("📋 Utilisateurs existants")
-        st.table(df_users[["name", "created_at"]])  # Affiche nom et date de création
+        # Affiche nom et date de création si la colonne existe
+        if "created_at" in df_users.columns:
+            st.table(df_users[["name", "created_at"]])
+        else:
+            st.table(df_users[["name"]])
     else:
         st.info("Aucun utilisateur disponible")
 
     # --- Créer un utilisateur ---
     st.subheader("Créer un nouvel utilisateur")
-    new_user = st.text_input("Nom du nouvel utilisateur")
+    new_user = st.text_input("Nom du nouvel utilisateur", key="new_user")
     if st.button("Créer utilisateur"):
-        if new_user and new_user not in users:
+        # Vérifie que le nom n'existe pas déjà
+        existing_names = [u["name"] for u in users_data.data] if users_data.data else []
+        if new_user and new_user not in existing_names:
             supabase.table("users").insert({"name": new_user}).execute()
             st.success(f"Utilisateur '{new_user}' créé !")
             st.experimental_rerun()
         else:
             st.error("Nom invalide ou déjà existant")
 
-    # --- Modifier / Supprimer ---
-    if users:
-        selected_user = st.selectbox("Sélectionner un utilisateur", users)
+    # --- Modifier / Supprimer un utilisateur ---
+    if users_data.data:
+        users = [u["name"] for u in users_data.data]
+        selected_user = st.selectbox("Sélectionner un utilisateur", users, key="select_user")
 
         # Modifier le nom
-        new_name = st.text_input("Nouveau nom", value=selected_user)
+        new_name = st.text_input("Nouveau nom", value=selected_user, key="rename_user")
         if st.button("Modifier le nom de l'utilisateur"):
             supabase.table("users").update({"name": new_name}).eq("name", selected_user).execute()
+            # Mettre à jour performances associées
             supabase.table("performances").update({"user_id": new_name}).eq("user_id", selected_user).execute()
             st.success(f"Utilisateur '{selected_user}' renommé en '{new_name}'")
             st.experimental_rerun()
@@ -67,7 +72,6 @@ if menu == "Gestion des utilisateurs":
             supabase.table("users").delete().eq("name", selected_user).execute()
             st.success(f"Utilisateur '{selected_user}' supprimé !")
             st.experimental_rerun()
-
 
 # -------------------------------
 # Ajouter une performance
