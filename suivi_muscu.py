@@ -151,22 +151,41 @@ elif menu == "Ajouter une performance":
 elif menu == "Voir mes performances":
     st.header("📊 Visualiser les performances")
 
+    # Sélection de l'utilisateur
     users_data = supabase.table("users").select("*").execute()
     users = [u["name"] for u in users_data.data]
     user = st.selectbox("Utilisateur", options=users)
 
-    data = supabase.table("performances").select("*").eq("user_id", user).order("date", desc=True).execute()
+    # Récupérer toutes les performances de l'utilisateur
+    data = supabase.table("performances").select("*").eq("user_id", user).execute()
     df = pd.DataFrame(data.data)
 
     if df.empty:
         st.warning("Aucune donnée trouvée.")
     else:
+        # Tableau complet des performances
+        st.subheader("Toutes les performances")
         st.dataframe(df)
+
+        # Calcul des PR (Poids max) par exercice
+        pr_list = []
+        exercises = df["exercice"].unique()
+        for ex in exercises:
+            subset = df[df["exercice"] == ex]
+            idx_max = subset["poids"].idxmax()
+            pr_row = subset.loc[idx_max, ["exercice", "poids", "date", "seance_name"]]
+            pr_list.append(pr_row)
+
+        df_pr = pd.DataFrame(pr_list)
+        st.subheader("🏆 PR (Poids max) par exercice")
+        st.table(df_pr.sort_values(by="seance_name"))
+
+        # Graphiques d'évolution
         st.subheader("Évolution du poids par exercice")
-        exos = df["exercice"].unique()
-        for ex in exos:
+        for ex in exercises:
             subset = df[df["exercice"] == ex]
             st.line_chart(subset, x="date", y="poids", use_container_width=True)
+
 
 # -------------------------------
 # Gérer mes séances et exercices
