@@ -53,7 +53,7 @@ if menu == "Ajouter une performance":
     # ----- Saisie du poids en champ texte -----
     poids_input = st.text_input("Poids (kg)", "")
     try:
-        poids = float(poids_input) if poids_input else 0.0
+        poids = int(float(poids_input)) if poids_input else 0
     except ValueError:
         st.error("⚠️ Saisis un nombre valide pour le poids.")
         poids = 0.0
