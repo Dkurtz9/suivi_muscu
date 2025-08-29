@@ -104,6 +104,37 @@ if menu == "Voir mes performances":
 # -------------------------------
 if menu == "Gérer les séances":
     st.header("🗂️ Gestion des séances")
-    st.write("Créer ou modifier des séances et leurs exercices depuis ici.")
+
+    # ----- Créer une nouvelle séance -----
+    st.subheader("➕ Créer une nouvelle séance")
+    nouvelle_seance = st.text_input("Nom de la séance")
+    if st.button("Créer la séance"):
+        if nouvelle_seance:
+            # Vérifier que la séance n'existe pas déjà
+            existing = supabase.table("seances").select("*").eq("name", nouvelle_seance).execute()
+            if existing.data:
+                st.warning("Cette séance existe déjà.")
+            else:
+                supabase.table("seances").insert({"name": nouvelle_seance}).execute()
+                st.success(f"✅ Séance '{nouvelle_seance}' créée !")
+
+    # ----- Ajouter des exercices à une séance -----
+    st.subheader("➕ Ajouter des exercices à une séance existante")
+    seances_data = supabase.table("seances").select("*").execute()
+    seances = [s["name"] for s in seances_data.data]
+    seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
+
+    nouveau_exo = st.text_input("Nom du nouvel exercice à ajouter")
+    if st.button("Ajouter l'exercice"):
+        if seance_selectionnee and nouveau_exo:
+            # Récupérer l'id de la séance
+            seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0]
+            # Vérifier si l'exercice existe déjà pour cette séance
+            existing_exo = supabase.table("exercises").select("*").eq("name", nouveau_exo).eq("seance_id", seance_id).execute()
+            if existing_exo.data:
+                st.warning("Cet exercice existe déjà dans cette séance.")
+            else:
+                supabase.table("exercises").insert({"name": nouveau_exo, "seance_id": seance_id}).execute()
+                st.success(f"✅ Exercice '{nouveau_exo}' ajouté à la séance '{seance_selectionnee}' !")
 
 
