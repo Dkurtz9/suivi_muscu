@@ -44,13 +44,21 @@ if menu == "Ajouter une performance":
         exo = st.text_input("Nom du nouvel exercice")
 
     poids = st.number_input("Poids (kg)", min_value=0.0, step=0.5)
-    reps = st.number_input("Répétitions", min_value=0, step=1)
-    series = st.number_input("Nombre de séries", min_value=1, step=1)
+
+    # Menu déroulant pour nombre de séries
+    nb_series = st.selectbox("Nombre de séries", options=[1, 2, 3, 4])
+
+    # Champs pour les répétitions de chaque série
+    reps_series = []
+    for i in range(nb_series):
+        reps = st.number_input(f"Répétitions série {i+1}", min_value=0, step=1, key=f"rep{i}")
+        reps_series.append(reps)
+
     notes = st.text_area("Notes (optionnel)")
     d = st.date_input("Date", value=date.today())
 
     if st.button("Enregistrer"):
-        if user and exo and poids > 0 and reps > 0 and series > 0:
+        if user and exo and poids > 0 and all(r > 0 for r in reps_series):
             # Ajouter l'exercice à la table exercises si c'est un nouvel exercice
             if exercises_data.data == [] or exo not in exercises:
                 supabase.table("exercises").insert({"name": exo}).execute()
@@ -61,8 +69,7 @@ if menu == "Ajouter une performance":
                 "date": d.isoformat(),
                 "exercice": exo.strip(),
                 "poids": poids,
-                "reps": reps,
-                "series": series,
+                "reps_series": reps_series,  # On stocke la liste dans un champ JSON ou text
                 "notes": notes.strip()
             }).execute()
             st.success("✅ Performance enregistrée !")
@@ -93,3 +100,4 @@ if menu == "Voir mes performances":
             for ex in exos:
                 subset = df[df["exercice"] == ex]
                 st.line_chart(subset, x="date", y="poids", use_container_width=True)
+
