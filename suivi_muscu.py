@@ -80,25 +80,29 @@ if menu == "Ajouter une performance":
         else:
             st.error("⚠️ Remplis tous les champs obligatoires.")
 
-   # ----- Visualiser les performances sous forme de tableau mobile-friendly -----
-    st.subheader(f"📋 Performances de {user}")
-    data = supabase.table("performances").select("*").eq("user_id", user).order("date", desc=True).execute()
+    # ----- Visualiser les performances du jour -----
+    st.subheader(f"📋 Performances de {user} - {date.today().isoformat()}")
+    data = supabase.table("performances").select("*")\
+        .eq("user_id", user).eq("date", date.today().isoformat())\
+        .order("date", desc=True).execute()
     df = pd.DataFrame(data.data)
 
     if not df.empty:
         df["reps_series"] = df["reps_series"].apply(lambda x: str(x or []))
         df_display = df[["date", "exercice", "poids", "reps_series", "notes"]]
-
-        # Affichage du tableau
         st.table(df_display)
 
-        # Sélecteur de ligne à supprimer
+        # Selectbox pour supprimer une ligne
         options = [f"{row['date']} | {row['exercice']}" for idx, row in df.iterrows()]
         ligne_a_supprimer = st.selectbox("Sélectionne la performance à supprimer", options)
-
         if st.button("Supprimer la ligne sélectionnée"):
             date_sel, exo_sel = ligne_a_supprimer.split(" | ")
-            supabase.table("performances").delete().eq("user_id", user).eq("date", date_sel).eq("exercice", exo_sel).execute()
+            supabase.table("performances")\
+                .delete()\
+                .eq("user_id", user)\
+                .eq("date", date_sel)\
+                .eq("exercice", exo_sel)\
+                .execute()
             st.success("✅ Performance supprimée !")
             st.experimental_rerun()
 
