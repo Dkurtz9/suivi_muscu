@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 from supabase import create_client
+import pytz
 
 # -------------------------------
 # Connexion à Supabase
@@ -26,24 +27,23 @@ menu = st.sidebar.radio("Navigation", [
 if menu == "Gestion des utilisateurs":
     st.header("👥 Gestion des utilisateurs")
     
-    # --- Récupération des utilisateurs ---
     users_data = supabase.table("users").select("*").execute()
+    
     if users_data.data:
         df_users = pd.DataFrame(users_data.data)
-        st.subheader("📋 Utilisateurs existants")
-        # Affiche nom et date de création si la colonne existe
+        
         if "created_at" in df_users.columns:
-            st.table(df_users[["name", "created_at"]])
+            df_users["created_at_local"] = pd.to_datetime(df_users["created_at"]).dt.tz_convert("Europe/Paris")
+            st.subheader("📋 Utilisateurs existants")
+            st.table(df_users[["name", "created_at_local"]])
         else:
             st.table(df_users[["name"]])
     else:
         st.info("Aucun utilisateur disponible")
 
-    # --- Créer un utilisateur ---
     st.subheader("Créer un nouvel utilisateur")
     new_user = st.text_input("Nom du nouvel utilisateur", key="new_user")
     if st.button("Créer utilisateur"):
-        # Vérifie que le nom n'existe pas déjà
         existing_names = [u["name"] for u in users_data.data] if users_data.data else []
         if new_user and new_user not in existing_names:
             supabase.table("users").insert({"name": new_user}).execute()
@@ -52,21 +52,17 @@ if menu == "Gestion des utilisateurs":
         else:
             st.error("Nom invalide ou déjà existant")
 
-    # --- Modifier / Supprimer un utilisateur ---
     if users_data.data:
         users = [u["name"] for u in users_data.data]
         selected_user = st.selectbox("Sélectionner un utilisateur", users, key="select_user")
 
-        # Modifier le nom
         new_name = st.text_input("Nouveau nom", value=selected_user, key="rename_user")
         if st.button("Modifier le nom de l'utilisateur"):
             supabase.table("users").update({"name": new_name}).eq("name", selected_user).execute()
-            # Mettre à jour performances associées
             supabase.table("performances").update({"user_id": new_name}).eq("user_id", selected_user).execute()
             st.success(f"Utilisateur '{selected_user}' renommé en '{new_name}'")
             st.experimental_rerun()
 
-        # Supprimer l'utilisateur
         if st.button("Supprimer l'utilisateur"):
             supabase.table("performances").delete().eq("user_id", selected_user).execute()
             supabase.table("users").delete().eq("name", selected_user).execute()
@@ -80,10 +76,9 @@ elif menu == "Ajouter une performance":
     st.header("➕ Ajouter une performance")
 
     users_data = supabase.table("users").select("*").execute()
-    users = [u["name"] for u in users_data.data]
+    users = [u["name"] for u in users_data.data] if users_data.data else []
     user = st.selectbox("Utilisateur", options=users)
 
-    # Séance et exercice
     seances_data = supabase.table("seances").select("*").execute()
     seances = [s["name"] for s in seances_data.data]
     seance_selectionnee = st.selectbox("Séance", options=seances)
@@ -94,11 +89,11 @@ elif menu == "Ajouter une performance":
     exercises.append("Nouvel exercice")
     exo = st.selectbox("Exercice", options=exercises)
     if exo == "Nouvel exercice":
-        exo = st.text_input("Nom du nouvel exercice")
-        if exo:
-            supabase.table("exercises").insert({"name": exo, "seance_id": seance_id}).execute()
+        exo_input = st.text_input("Nom du nouvel exercice")
+        if exo_input:
+            supabase.table("exercises").insert({"name": exo_input, "seance_id": seance_id}).execute()
+            exo = exo_input
 
-    # Poids
     poids_option = st.radio("Poids", ["Poids du corps", "Avec poids"])
     if poids_option == "Poids du corps":
         poids = 0
@@ -110,13 +105,11 @@ elif menu == "Ajouter une performance":
             st.error("⚠️ Saisis un nombre entier valide pour le poids.")
             poids = 0
 
-    # Séries et répétitions
     nb_series = st.selectbox("Nombre de séries", [1, 2, 3, 4])
     reps_series = [st.number_input(f"Répétitions série {i+1}", min_value=0, step=1, key=f"rep{i}") for i in range(nb_series)]
     notes = st.text_area("Notes (optionnel)")
     d = st.date_input("Date", value=date.today())
 
-    # Enregistrer
     if st.button("Enregistrer"):
         if user and exo and (poids > 0 or poids_option == "Poids du corps") and all(r > 0 for r in reps_series):
             supabase.table("performances").insert({
@@ -129,13 +122,11 @@ elif menu == "Ajouter une performance":
             }).execute()
             st.success("✅ Performance enregistrée !")
 
-    # Affichage des performances du jour
     st.subheader(f"📋 Performances de {user} - {date.today().isoformat()}")
     data = supabase.table("performances").select("*")\
         .eq("user_id", user).eq("date", date.today().isoformat())\
         .order("date", desc=True).execute()
     df = pd.DataFrame(data.data)
-
     if not df.empty:
         df["reps_series"] = df["reps_series"].apply(lambda x: str(x or []))
         df_display = df[["date", "exercice", "poids", "reps_series", "notes"]]
@@ -171,7 +162,6 @@ elif menu == "Voir mes performances":
         st.warning("Aucune donnée trouvée.")
     else:
         st.dataframe(df)
-
         st.subheader("Évolution du poids par exercice")
         exos = df["exercice"].unique()
         for ex in exos:
@@ -189,14 +179,12 @@ elif menu == "Gérer mes séances":
     seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
     seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0]
 
-    # Modifier le nom de la séance
     new_name = st.text_input("Nouveau nom de la séance", value=seance_selectionnee)
     if st.button("Modifier le nom de la séance"):
         supabase.table("seances").update({"name": new_name}).eq("id", seance_id).execute()
         st.success("Nom de la séance modifié !")
         st.experimental_rerun()
 
-    # Liste des exercices
     exercises_data = supabase.table("exercises").select("*").eq("seance_id", seance_id).execute()
     exercises = [e["name"] for e in exercises_data.data]
 
