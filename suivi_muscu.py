@@ -110,8 +110,6 @@ if menu == "Ajouter une performance":
                 supabase.table("performances").delete().eq("id", row["id"]).execute()
                 st.success("✅ Performance supprimée !")
                 st.experimental_rerun()
- supprimée !")
-                st.experimental_rerun()
 
 
 # -------------------------------
