@@ -26,10 +26,19 @@ menu = st.sidebar.radio("Navigation", [
 if menu == "Gestion des utilisateurs":
     st.header("👥 Gestion des utilisateurs")
     
+    # Récupération des utilisateurs depuis Supabase
     users_data = supabase.table("users").select("*").execute()
     users = [u["name"] for u in users_data.data]
 
-    # Créer un utilisateur
+    # --- Affichage du tableau avec date de création ---
+    if users_data.data:
+        df_users = pd.DataFrame(users_data.data)
+        st.subheader("📋 Utilisateurs existants")
+        st.table(df_users[["name", "created_at"]])  # Affiche nom et date de création
+    else:
+        st.info("Aucun utilisateur disponible")
+
+    # --- Créer un utilisateur ---
     st.subheader("Créer un nouvel utilisateur")
     new_user = st.text_input("Nom du nouvel utilisateur")
     if st.button("Créer utilisateur"):
@@ -40,7 +49,7 @@ if menu == "Gestion des utilisateurs":
         else:
             st.error("Nom invalide ou déjà existant")
 
-    # Modifier / supprimer un utilisateur
+    # --- Modifier / Supprimer ---
     if users:
         selected_user = st.selectbox("Sélectionner un utilisateur", users)
 
@@ -58,6 +67,7 @@ if menu == "Gestion des utilisateurs":
             supabase.table("users").delete().eq("name", selected_user).execute()
             st.success(f"Utilisateur '{selected_user}' supprimé !")
             st.experimental_rerun()
+
 
 # -------------------------------
 # Ajouter une performance
