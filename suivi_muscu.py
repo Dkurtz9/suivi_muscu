@@ -166,53 +166,51 @@ elif menu == "Voir mes performances":
             if not subset.empty:
                 st.line_chart(subset, x="date", y="poids", use_container_width=True)
 
-
 # -------------------------------
 # Gérer mes séances
 # -------------------------------
 elif menu == "Gérer mes séances":
     st.header("📋 Gestion des séances et exercices")
 
-    # Récupération des séances
+    # Récupérer les séances
     seances_data = supabase.table("seances").select("*").execute()
     seances = [s["name"] for s in seances_data.data] if seances_data.data else []
+    seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
+    seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0] if seances else None
 
-    if not seances:
-        st.warning("Aucune séance disponible.")
-    else:
-        seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
-        seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0]
-
+    if seance_id:
         # Modifier le nom de la séance
         new_name = st.text_input("Nouveau nom de la séance", value=seance_selectionnee)
         if st.button("Modifier le nom"):
             supabase.table("seances").update({"name": new_name}).eq("id", seance_id).execute()
-            st.success("Nom de séance modifié !")
+            st.success("Nom modifié !")
             st.experimental_rerun()
 
-        # Liste des exercices
+        # Afficher les exercices existants
         exercises_data = supabase.table("exercises").select("*").eq("seance_id", seance_id).execute()
         st.subheader("📋 Exercices de la séance")
         if exercises_data.data:
             df_exos = pd.DataFrame(exercises_data.data)
-            st.table(df_exos[["name", "image_url"]])
+            st.table(df_exos[["name"]])
+            # Afficher images si présentes
+            for ex in exercises_data.data:
+                if "image_url" in ex and ex["image_url"]:
+                    st.image(ex["image_url"], caption=ex["name"], use_container_width=True)
         else:
-            st.info("Aucun exercice pour cette séance.")
+            st.info("Aucun exercice pour cette séance")
 
-        # Ajouter un nouvel exercice avec image
+        # Ajouter un nouvel exercice
         st.subheader("Ajouter un nouvel exercice")
         new_exo = st.text_input("Nom de l'exercice")
-        uploaded_file = st.file_uploader("Image de l'exercice", type=["png", "jpg", "jpeg"])
-
+        uploaded_file = st.file_uploader("Image de l'exercice (optionnel)", type=["png", "jpg", "jpeg"])
         if st.button("Ajouter l'exercice"):
-            image_url = None
-            if uploaded_file is not None:
-                file_name = uploaded_file.name
-                file_bytes = uploaded_file.read()
-                supabase.storage.from_("exercise_images").upload(file_name, file_bytes)
-                image_url = supabase.storage.from_("exercise_images").get_public_url(file_name)["publicUrl"]
-
             if new_exo and new_exo not in [e["name"] for e in exercises_data.data]:
+                image_url = ""
+                if uploaded_file:
+                    file_name = f"{new_exo}_{uploaded_file.name}"
+                    supabase.storage.from_("exercise_images").upload(file_name, uploaded_file.getbuffer())
+                    res = supabase.storage.from_("exercise_images").get_public_url(file_name)
+                    image_url = res.get("publicUrl") or res.get("public_url") or ""
                 supabase.table("exercises").insert({
                     "name": new_exo,
                     "seance_id": seance_id,
@@ -229,7 +227,6 @@ elif menu == "Gérer mes séances":
                 supabase.table("exercises").delete().eq("seance_id", seance_id).eq("name", exo_sup).execute()
                 st.success("Exercice supprimé !")
                 st.experimental_rerun()
-
 
 # -------------------------------
 # Gestion des utilisateurs
