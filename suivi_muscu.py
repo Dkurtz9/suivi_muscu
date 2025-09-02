@@ -196,7 +196,7 @@ elif menu == "Gérer mes séances":
         for ex in exercises_data.data:
             if ex.get("image_url"):
                 st.text(f"Exercice : {ex['name']}")
-                st.image(ex["image_url"], use_column_width=True)
+                st.image(ex["image_url"], use_container_width=True)
     else:
         st.info("Aucun exercice pour cette séance")
 
