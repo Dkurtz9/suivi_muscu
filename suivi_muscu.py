@@ -45,7 +45,7 @@ if menu == "Ajouter une performance":
     # Affichage image de l'exercice
     selected_exo_data = next((e for e in exercises_data.data if e["name"] == exo), None) if exercises_data else None
     if selected_exo_data and selected_exo_data.get("image_url"):
-        st.image(selected_exo_data["image_url"], use_column_width=True)
+        st.image(selected_exo_data["image_url"], use_container_width=True)
 
     # Poids
     poids_option = st.radio("Poids", ["Poids du corps", "Avec poids"])
