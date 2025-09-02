@@ -172,14 +172,12 @@ elif menu == "Voir mes performances":
 elif menu == "Gérer mes séances":
     st.header("📋 Gestion des séances et exercices")
 
-    # Récupérer toutes les séances
+    # Sélection séance
     seances_data = supabase.table("seances").select("*").execute()
     seances = [s["name"] for s in seances_data.data] if seances_data.data else []
-    
     if not seances:
-        st.info("Aucune séance disponible. Commence par en créer une.")
+        st.warning("Aucune séance disponible.")
     else:
-        # Sélectionner la séance
         seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
         seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0]
 
@@ -187,39 +185,46 @@ elif menu == "Gérer mes séances":
         new_name = st.text_input("Nouveau nom de la séance", value=seance_selectionnee)
         if st.button("Modifier le nom"):
             supabase.table("seances").update({"name": new_name}).eq("id", seance_id).execute()
-            st.success("Nom de la séance modifié !")
+            st.success("Nom modifié !")
             st.experimental_rerun()
 
-        # Afficher les exercices existants
+        # Liste des exercices de la séance
         exercises_data = supabase.table("exercises").select("*").eq("seance_id", seance_id).execute()
         st.subheader("📋 Exercices de la séance")
         if exercises_data.data:
             df_exos = pd.DataFrame(exercises_data.data)
-            st.table(df_exos[["name", "image_url"]])  # Affiche nom et image_url
+            for idx, row in df_exos.iterrows():
+                st.write(f"- {row['name']}")
+                if row.get("image_url"):
+                    st.image(row["image_url"], use_container_width=True)
         else:
             st.info("Aucun exercice pour cette séance")
 
-        # Ajouter un nouvel exercice
+        # Ajouter un nouvel exercice avec image
         st.subheader("Ajouter un nouvel exercice")
         new_exo = st.text_input("Nom de l'exercice")
-        uploaded_file = st.file_uploader("Ajouter une image (optionnel)", type=["png", "jpg", "jpeg"])
-        if st.button("Ajouter l'exercice"):
-            if new_exo:
-                image_url = ""
-                if uploaded_file:
-                    file_name = f"{new_exo}_{uploaded_file.name}"
-                    file_bytes = uploaded_file.read()  # Convertit le fichier en bytes
-                    supabase.storage.from_("exercise_images").upload(file_name, file_bytes)
-                    res = supabase.storage.from_("exercise_images").get_public_url(file_name)
-                    image_url = res.get("publicUrl") or res.get("public_url") or ""
+        uploaded_file = st.file_uploader("Ajouter une image (optionnel)", type=["png","jpg","jpeg"])
 
-                supabase.table("exercises").insert({
-                    "name": new_exo,
-                    "seance_id": seance_id,
-                    "image_url": image_url
-                }).execute()
-                st.success("Exercice ajouté !")
-                st.experimental_rerun()
+        if st.button("Ajouter l'exercice") and new_exo:
+            image_url = ""
+            if uploaded_file:
+                # Lire le fichier en bytes
+                file_bytes = uploaded_file.read()
+                # Nom unique pour éviter collision
+                file_name = f"{new_exo}_{uploaded_file.name}"
+                # Upload dans le bucket
+                supabase.storage.from_("exercise_images").upload(file_name, file_bytes)
+                # Récupérer l'URL publique
+                res = supabase.storage.from_("exercise_images").get_public_url(file_name)
+                image_url = res.get("publicUrl") or res.get("public_url") or ""
+            # Insérer l'exercice dans la table
+            supabase.table("exercises").insert({
+                "name": new_exo,
+                "seance_id": seance_id,
+                "image_url": image_url
+            }).execute()
+            st.success("Exercice ajouté !")
+            st.experimental_rerun()
 
         # Supprimer un exercice
         st.subheader("Supprimer un exercice")
@@ -229,6 +234,7 @@ elif menu == "Gérer mes séances":
                 supabase.table("exercises").delete().eq("seance_id", seance_id).eq("name", exo_sup).execute()
                 st.success("Exercice supprimé !")
                 st.experimental_rerun()
+
 
 # -------------------------------
 # Gestion des utilisateurs
