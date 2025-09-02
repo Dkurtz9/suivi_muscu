@@ -172,18 +172,22 @@ elif menu == "Voir mes performances":
 elif menu == "Gérer mes séances":
     st.header("📋 Gestion des séances et exercices")
 
-    # Récupérer les séances
+    # Récupérer toutes les séances
     seances_data = supabase.table("seances").select("*").execute()
     seances = [s["name"] for s in seances_data.data] if seances_data.data else []
-    seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
-    seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0] if seances else None
+    
+    if not seances:
+        st.info("Aucune séance disponible. Commence par en créer une.")
+    else:
+        # Sélectionner la séance
+        seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
+        seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0]
 
-    if seance_id:
         # Modifier le nom de la séance
         new_name = st.text_input("Nouveau nom de la séance", value=seance_selectionnee)
         if st.button("Modifier le nom"):
             supabase.table("seances").update({"name": new_name}).eq("id", seance_id).execute()
-            st.success("Nom modifié !")
+            st.success("Nom de la séance modifié !")
             st.experimental_rerun()
 
         # Afficher les exercices existants
@@ -191,26 +195,24 @@ elif menu == "Gérer mes séances":
         st.subheader("📋 Exercices de la séance")
         if exercises_data.data:
             df_exos = pd.DataFrame(exercises_data.data)
-            st.table(df_exos[["name"]])
-            # Afficher images si présentes
-            for ex in exercises_data.data:
-                if "image_url" in ex and ex["image_url"]:
-                    st.image(ex["image_url"], caption=ex["name"], use_container_width=True)
+            st.table(df_exos[["name", "image_url"]])  # Affiche nom et image_url
         else:
             st.info("Aucun exercice pour cette séance")
 
         # Ajouter un nouvel exercice
         st.subheader("Ajouter un nouvel exercice")
         new_exo = st.text_input("Nom de l'exercice")
-        uploaded_file = st.file_uploader("Image de l'exercice (optionnel)", type=["png", "jpg", "jpeg"])
+        uploaded_file = st.file_uploader("Ajouter une image (optionnel)", type=["png", "jpg", "jpeg"])
         if st.button("Ajouter l'exercice"):
-            if new_exo and new_exo not in [e["name"] for e in exercises_data.data]:
+            if new_exo:
                 image_url = ""
                 if uploaded_file:
                     file_name = f"{new_exo}_{uploaded_file.name}"
-                    supabase.storage.from_("exercise_images").upload(file_name, uploaded_file.getbuffer())
+                    file_bytes = uploaded_file.read()  # Convertit le fichier en bytes
+                    supabase.storage.from_("exercise_images").upload(file_name, file_bytes)
                     res = supabase.storage.from_("exercise_images").get_public_url(file_name)
                     image_url = res.get("publicUrl") or res.get("public_url") or ""
+
                 supabase.table("exercises").insert({
                     "name": new_exo,
                     "seance_id": seance_id,
