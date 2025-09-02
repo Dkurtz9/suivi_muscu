@@ -173,14 +173,15 @@ elif menu == "Voir mes performances":
 elif menu == "Gérer mes séances":
     st.header("📋 Gestion des séances et exercices")
 
-    # Récupérer toutes les séances
+    # Récupération des séances
     seances_data = supabase.table("seances").select("*").execute()
     seances = [s["name"] for s in seances_data.data] if seances_data.data else []
+
     if not seances:
-        st.info("Aucune séance disponible.")
+        st.warning("Aucune séance disponible.")
     else:
         seance_selectionnee = st.selectbox("Sélectionner une séance", options=seances)
-        seance_id = [s["id"] for s in seances_data.data if s["name"]==seance_selectionnee][0]
+        seance_id = [s["id"] for s in seances_data.data if s["name"] == seance_selectionnee][0]
 
         # Modifier le nom de la séance
         new_name = st.text_input("Nouveau nom de la séance", value=seance_selectionnee)
@@ -196,27 +197,22 @@ elif menu == "Gérer mes séances":
             df_exos = pd.DataFrame(exercises_data.data)
             st.table(df_exos[["name", "image_url"]])
         else:
-            st.info("Aucun exercice pour cette séance")
+            st.info("Aucun exercice pour cette séance.")
 
         # Ajouter un nouvel exercice avec image
         st.subheader("Ajouter un nouvel exercice")
         new_exo = st.text_input("Nom de l'exercice")
-        uploaded_file = st.file_uploader("Image de l'exercice (optionnel)", type=["png", "jpg", "jpeg"])
+        uploaded_file = st.file_uploader("Image de l'exercice", type=["png", "jpg", "jpeg"])
 
         if st.button("Ajouter l'exercice"):
-            if not new_exo:
-                st.error("⚠️ Saisis un nom pour l'exercice.")
-            else:
-                image_url = ""
-                if uploaded_file:
-                    # Upload dans Supabase Storage
-                    file_name = f"{new_exo}_{uploaded_file.name}"
-                    res = supabase.storage.from_("exercise_images").upload(file_name, uploaded_file)
-                    if res.get("error"):
-                        st.error(f"Erreur upload image : {res['error']['message']}")
-                    else:
-                        image_url = supabase.storage.from_("exercise_images").get_public_url(file_name)["publicUrl"]
-                
+            image_url = None
+            if uploaded_file is not None:
+                file_name = uploaded_file.name
+                file_bytes = uploaded_file.read()
+                supabase.storage.from_("exercise_images").upload(file_name, file_bytes)
+                image_url = supabase.storage.from_("exercise_images").get_public_url(file_name)["publicUrl"]
+
+            if new_exo and new_exo not in [e["name"] for e in exercises_data.data]:
                 supabase.table("exercises").insert({
                     "name": new_exo,
                     "seance_id": seance_id,
@@ -233,6 +229,7 @@ elif menu == "Gérer mes séances":
                 supabase.table("exercises").delete().eq("seance_id", seance_id).eq("name", exo_sup).execute()
                 st.success("Exercice supprimé !")
                 st.experimental_rerun()
+
 
 # -------------------------------
 # Gestion des utilisateurs
